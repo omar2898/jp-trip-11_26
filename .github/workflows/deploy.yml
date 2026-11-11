@@ -1,0 +1,60 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decrypt the app source
+        env:
+          SOURCE_KEY: ${{ secrets.SOURCE_KEY }}
+        run: |
+          test -n "$SOURCE_KEY" || { echo "Add the SOURCE_KEY repository secret"; exit 1; }
+          printf '%s' "$SOURCE_KEY" > key.txt
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in site.enc -out index.html -pass file:key.txt
+          rm key.txt
+      - name: Password-protect it
+        env:
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: |
+          test -n "$SITE_PASSWORD" || { echo "Add the SITE_PASSWORD repository secret"; exit 1; }
+          npx --yes staticrypt@3.5.4 index.html \
+            -p "$SITE_PASSWORD" \
+            --salt 3c19da85c01692285c6a3effb7b7453a \
+            --short \
+            --remember 0 \
+            --template-title "Japan Trip" \
+            --template-instructions "Enter your password once. Tick Remember me and it stays unlocked on this phone." \
+            --template-button "Open" \
+            --template-color-primary "#c8402a" \
+            --template-color-secondary "#f3f1ec" \
+            -d dist
+          rm index.html
+          touch dist/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
