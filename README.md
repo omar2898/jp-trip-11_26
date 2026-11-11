@@ -13,4 +13,4 @@ About a minute later the site uses the new password. Phones that ticked "Remembe
 ## Secrets this repo needs
 
 - `SITE_PASSWORD`: the password you type to open the app.
-- `SOURCE_KEY`: decrypts `site.enc`. Don't change it.
+- `SOURCE_KEY`: unlocks `site.enc` during the build (the first password from the chat). Leave it as is; Claude uses it to push app updates.
