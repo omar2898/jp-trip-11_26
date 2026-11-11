@@ -24,8 +24,9 @@ jobs:
           SOURCE_KEY: ${{ secrets.SOURCE_KEY }}
         run: |
           test -n "$SOURCE_KEY" || { echo "Add the SOURCE_KEY repository secret"; exit 1; }
-          printf '%s' "$SOURCE_KEY" > key.txt
-          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in site.enc -out index.html -pass file:key.txt
+          # tolerate stray spaces, newlines or backticks from pasting
+          printf '%s' "$SOURCE_KEY" | tr -d '\r\n`' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' > key.txt
+          openssl enc -d -aes-256-cbc -md sha256 -pbkdf2 -iter 200000 -in site.enc -out index.html -pass file:key.txt || { echo "SOURCE_KEY doesn't match. Paste it again exactly."; exit 1; }
           rm key.txt
       - name: Password-protect it
         env:
